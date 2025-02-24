@@ -1,13 +1,21 @@
-import orjson
-from types import SimpleNamespace
+from dataclasses import dataclass
 
-config = SimpleNamespace(data_dir_path="data/", log_level=1, ETag="")
+import orjson
+
+
+@dataclass
+class Config:  # filled with default values
+    data_dir_path: str = "data/"
+    log_level: int = 1
+
+
+config = Config()
 
 
 def read_config():
     with open("./config.json", "rb") as file:
         global config
-        config = SimpleNamespace(**orjson.loads(file.read()))
+        config = Config(**orjson.loads(file.read()))
 
 
 def write_config():

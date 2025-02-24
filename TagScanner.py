@@ -1,10 +1,10 @@
-import Config
+from DataHandler import write_data
 from Setup import setup
-import os
 
 
 def main():
     setup()
+    write_data()
 
 
 if __name__ == "__main__":
