@@ -1,2 +1,4 @@
 # created by virtualenv automatically
 .venv
+.data
+config.json
