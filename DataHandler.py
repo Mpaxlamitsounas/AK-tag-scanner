@@ -9,6 +9,8 @@ import requests
 from Config import config
 from Operator import Operator
 
+import timeit
+
 cached_ETag: str
 recruitable: frozenset[Operator]
 tags: frozenset[str]
@@ -72,6 +74,13 @@ def update_data(gacha_table_response: requests.Response):
     # )
     operator_details_response = pickle.load(open("response.resp", "rb"))
 
+    arg1, arg2 = recruitable_names, orjson.loads(operator_details_response.text)
+    time = timeit.timeit(
+        "get_operator_details(arg1, arg2)",
+        "from DataHandler import get_operator_details",
+        number=1000,
+        globals=locals(),
+    )
     recruitable = get_operator_details(
         recruitable_names, orjson.loads(operator_details_response.text)
     )
@@ -109,15 +118,16 @@ def get_operator_details(
         for code_name, details in operator_details.items():
             if details["name"] == name:
                 rarity = int(details["rarity"][-1:])
-                if rarity == 5:
-                    details["tagList"].append("Senior Operator")
-                elif rarity == 6:
-                    details["tagList"].append("Top Operator")
 
                 recruitable_set.add(
                     Operator(
                         name,
-                        frozenset(details["tagList"]),
+                        frozenset(
+                            details["tagList"]
+                            + add_extra_tags(
+                                rarity, details["position"], details["profession"]
+                            )
+                        ),
                         rarity,
                         code_name,
                     )
@@ -141,6 +151,43 @@ def get_operator_details(
             logging.warning(operator)
 
     return frozenset(recruitable_set)
+
+
+def add_extra_tags(rarity: int, position: str, profession: str) -> list[str]:
+    extra_tags: list[str] = []
+    match rarity:
+        case 5:
+            extra_tags.append("Senior Operator")
+        case 6:
+            extra_tags.append("Top Operator")
+        case _:
+            pass
+
+    match position:
+        case "MELEE":
+            extra_tags.append("Melee")
+        case "RANGED":
+            extra_tags.append("Ranged")
+
+    match profession:
+        case "PIONEER":
+            extra_tags.append("Vanguard")
+        case "WARRIOR":
+            extra_tags.append("Guard")
+        case "TANK":
+            extra_tags.append("Defender")
+        case "SNIPER":
+            extra_tags.append("Sniper")
+        case "CASTER":
+            extra_tags.append("Caster")
+        case "MEDIC":
+            extra_tags.append("Medic")
+        case "SUPPORT":
+            extra_tags.append("Supporter")
+        case "SPECIAL":
+            extra_tags.append("Specialist")
+
+    return extra_tags
 
 
 def parse_tags(tags_str: list[dict[str, str]]) -> frozenset[str]:

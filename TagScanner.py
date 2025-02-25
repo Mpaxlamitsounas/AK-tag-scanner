@@ -1,5 +1,6 @@
 from DataHandler import write_data
 from Setup import setup
+import cProfile
 
 
 def main():
@@ -8,4 +9,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    cProfile.run("main()", sort="time")
