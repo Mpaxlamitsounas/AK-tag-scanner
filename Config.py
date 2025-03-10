@@ -1,23 +1,21 @@
-from dataclasses import dataclass
-
 import orjson
+from orjson.orjson import OPT_INDENT_2
 
-
-@dataclass
-class Config:  # filled with default values
-    data_dir_path: str = "data/"
-    log_level: int = 1
-
+from Classes import Config
 
 config = Config()
 
 
-def read_config():
-    with open("./config.json", "rb") as file:
-        global config
-        config = Config(**orjson.loads(file.read()))
-
-
-def write_config():
+def write_default_config():
     with open("./config.json", "wb") as file:
-        file.write(orjson.dumps(vars(config)))
+        file.write(orjson.dumps(vars(config), option=OPT_INDENT_2))
+
+
+def read_config():
+    global config
+    try:
+        with open("./config.json", "rb") as file:
+            config = Config(**orjson.loads(file.read()))
+    except FileNotFoundError:
+        config = Config()
+        write_default_config()
