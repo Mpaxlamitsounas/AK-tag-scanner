@@ -76,14 +76,21 @@ def rank_results(
         else:
             regular_results.append(result)
 
-    if len(special_results) > 0:
-        special_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
-    if len(regular_results) > 0:
-        regular_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
+    special_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
+    regular_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
 
-    if len(special_results) != 0:
+    duplicates_count = 0
+    special_results_copy = special_results.copy()
+    for result in special_results.copy():
+        special_results_copy.remove(result)
+        if any([result.operators == special_result.operators for special_result in special_results_copy]):
+            duplicates_count += 1
+
+    special_count = len(special_results) - duplicates_count
+
+    if special_count != 0:
         return (
-            special_results[0] if len(special_results) == 1 else None
+            special_results[0] if special_count == 1 else None
         ), special_results + regular_results
 
     max_rarity = regular_results[0].rarity
@@ -122,7 +129,7 @@ def compute_result(tags: frozenset[str]) -> RecruitResult | None:
 
 
 def compute_results(tags: frozenset[str]) -> list[RecruitResult]:
-    tag_combination_results: list[RecruitResult] = []
+    results: list[RecruitResult] = []
 
     tag_combinations: list[frozenset[str]] = []
     for combination_length in range(1, 6 + 1):
@@ -135,12 +142,12 @@ def compute_results(tags: frozenset[str]) -> list[RecruitResult]:
 
     for tag_combination in tag_combinations:
         if tag_combination not in data.computed_results:
-            recruitment_result = compute_result(tag_combination)
-            if recruitment_result is not None:
-                data.computed_results[tag_combination] = recruitment_result
+            result = compute_result(tag_combination)
+            if result is not None:
+                data.computed_results[tag_combination] = result
             else:
                 continue
 
-        tag_combination_results.append(data.computed_results[tag_combination])
+        results.append(data.computed_results[tag_combination])
 
-    return tag_combination_results
+    return results
