@@ -45,7 +45,9 @@ def compute_base_tag_results():
     for operator in data.recruitable_operators:
         if operator.rarity == 6:
             for combination_length in range(1, 5 + 1):
-                for combination in combinations(operator.tags.difference("Top Operator"), combination_length):
+                for combination in combinations(
+                    operator.tags.difference("Top Operator"), combination_length
+                ):
                     results[(*combination, "Top Operator")].add(operator)
 
         else:
@@ -57,6 +59,18 @@ def compute_base_tag_results():
         data.computed_results[tag] = RecruitResult(
             tag, frozenset(operators), compute_result_rarity(frozenset(operators))
         )
+
+
+def compute_duplicate_count(results: list[RecruitResult]) -> int:
+    duplicate_count = 0
+    results_copy = results.copy()
+    for cur_result in results.copy():
+        results_copy.remove(cur_result)
+        if any([cur_result.operators == result.operators for result in results_copy]):
+            duplicate_count += 1
+
+    return duplicate_count
+
 
 def rank_results(
     results: list[RecruitResult],
@@ -79,14 +93,7 @@ def rank_results(
     special_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
     regular_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
 
-    duplicates_count = 0
-    special_results_copy = special_results.copy()
-    for result in special_results.copy():
-        special_results_copy.remove(result)
-        if any([result.operators == special_result.operators for special_result in special_results_copy]):
-            duplicates_count += 1
-
-    special_count = len(special_results) - duplicates_count
+    special_count = len(special_results) - compute_duplicate_count(special_results)
 
     if special_count != 0:
         return (
