@@ -8,6 +8,7 @@ import DataHandler as data
 from Classes import Operator, RecruitResult
 from Config import config
 
+
 # TODO: test
 def invalidate_updated_combinations(
     old_recruitable_operators: frozenset[Operator], old_recruitment_tags: frozenset[str]
@@ -40,17 +41,22 @@ def compute_result_rarity(operators: frozenset[Operator]) -> int:
 
 
 def compute_base_tag_results():
-    results: defaultdict[str, set[Operator]] = defaultdict(set)
+    results: defaultdict[tuple[str, ...], set[Operator]] = defaultdict(set)
     for operator in data.recruitable_operators:
-        for tag in operator.tags:
-            results[tag].add(operator)
+        if operator.rarity == 6:
+            for combination_length in range(1, 5 + 1):
+                for combination in combinations(operator.tags.difference("Top Operator"), combination_length):
+                    results[(*combination, "Top Operator")].add(operator)
+
+        else:
+            for tag in operator.tags:
+                results[(tag,)].add(operator)
 
     for tag, operators in results.items():
-        tag = frozenset((tag,))
+        tag = frozenset(tag)
         data.computed_results[tag] = RecruitResult(
             tag, frozenset(operators), compute_result_rarity(frozenset(operators))
         )
-
 
 def rank_results(
     results: list[RecruitResult],
@@ -100,7 +106,7 @@ def compute_result(tags: frozenset[str]) -> RecruitResult | None:
     possible_operators = data.recruitable_operators.copy()
     for tag in tags:
         if tag not in data.recruitment_tags:
-            logging.warning(f'Unrecognised tag: ""{tag}"", expect incomplete results.')
+            logging.warning(f'Unrecognised tag: "{tag}", expect incomplete results.')
             return None
 
         possible_operators = possible_operators.intersection(
@@ -109,11 +115,6 @@ def compute_result(tags: frozenset[str]) -> RecruitResult | None:
 
         if len(possible_operators) == 0:
             return None
-
-    if "Top Operator" not in tags:
-        possible_operators = frozenset(
-            [operator for operator in possible_operators if operator.rarity != 6]
-        )
 
     return RecruitResult(
         tags, possible_operators, compute_result_rarity(possible_operators)

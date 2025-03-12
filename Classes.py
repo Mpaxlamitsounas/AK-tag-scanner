@@ -15,7 +15,7 @@ class RecruitResult:
     rarity: int | None
 
     def get_sorted_operators(self) -> list[Operator]:
-        return sorted(self.operators, key=lambda x: (x.rarity, x.name))
+        return sorted(self.operators, key=lambda x: (-x.rarity, x.name))
 
 
 @dataclass
