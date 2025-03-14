@@ -35,7 +35,13 @@ def compute_result_rarity(operators: frozenset[Operator]) -> int:
             rarity = operator.rarity
 
         if rarity != operator.rarity:
-            return 0
+            if operator.rarity in (1,2): # These can be excluded with time
+                pass
+            elif operator.rarity == 3:
+                return 3
+            else:
+                rarity = min(rarity, operator.rarity)
+
 
     return rarity
 
@@ -90,8 +96,8 @@ def rank_results(
         else:
             regular_results.append(result)
 
-    special_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
-    regular_results.sort(key=lambda x: (x.rarity, -len(x.operators)))
+    special_results.sort(key=lambda x: (x.rarity, len(x.operators)), reverse=True)
+    regular_results.sort(key=lambda x: (x.rarity, len(x.operators)), reverse=True)
 
     special_count = len(special_results) - compute_duplicate_count(special_results)
 
@@ -102,7 +108,7 @@ def rank_results(
 
     max_rarity = regular_results[0].rarity
 
-    matching_rarity = (0, 3)
+    matching_rarity = (3,)
     if max_rarity == 4:
         matching_rarity = (4,)
         if not config.randomly_select_4stars:
