@@ -3,7 +3,7 @@ import os
 import pickle
 import re
 from collections import defaultdict
-from collections.abc import Mapping, MutableSequence
+from collections.abc import Collection, Mapping, MutableSequence
 
 import orjson
 import requests
@@ -124,7 +124,7 @@ def get_special_tags(rarity: int, position: str, profession: str) -> list[str]:
 
 
 def parse_recruitable_operators(
-    recruitable_operator_names: MutableSequence[str],
+    recruitable_operator_names: Collection[str],
     operator_details: Mapping[str, dict],
 ) -> frozenset[Operator]:
     operators: set[Operator] = set()

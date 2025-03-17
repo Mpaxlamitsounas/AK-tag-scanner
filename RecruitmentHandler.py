@@ -1,5 +1,6 @@
 import logging
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
+from copy import copy
 from itertools import combinations
 
 # noinspection PyPep8Naming
@@ -35,11 +36,9 @@ def compute_result_rarity(operators: Iterable[Operator]) -> tuple[int, dict[int,
 
 
 def count_duplicates(results: Iterable[RecruitResult]) -> int:
-    results = list(results)
-
     duplicate_count = 0
-    results_copy = results.copy()
-    for cur_result in results.copy():
+    results_copy = list(copy(results))
+    for cur_result in copy(results):
         results_copy.remove(cur_result)
         if any([cur_result.operators == result.operators for result in results_copy]):
             duplicate_count += 1
@@ -72,9 +71,9 @@ def compute_result(tags: Iterable[str]) -> RecruitResult | None:
 
 
 def rank_results(
-    results: Iterable[RecruitResult],
+    results: Collection[RecruitResult],
 ) -> tuple[RecruitResult | None, list[RecruitResult]]:
-    if len(list(results)) == 0:
+    if len(results) == 0:
         return None, []
 
     special_results: list[RecruitResult] = []
