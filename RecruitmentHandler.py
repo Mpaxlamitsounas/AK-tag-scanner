@@ -1,6 +1,5 @@
 import logging
-import random
-from collections import defaultdict
+from collections.abc import Iterable
 from itertools import combinations
 
 # noinspection PyPep8Naming
@@ -9,65 +8,35 @@ from Classes import Operator, RecruitResult
 from Config import config
 
 
-# TODO: test
-def invalidate_updated_combinations(
-    old_recruitable_operators: frozenset[Operator], old_recruitment_tags: frozenset[str]
-):
-    updated_tags: set[str] = set()
-    for tag in data.recruitment_tags.symmetric_difference(old_recruitment_tags):
-        updated_tags.add(tag)
-
-    for operator in data.recruitable_operators.symmetric_difference(
-        old_recruitable_operators
-    ):
-        updated_tags.update(operator.tags)
-
-    for tag_combination in list(data.computed_results.keys()):
-        if not tag_combination.isdisjoint(updated_tags):
-            del data.computed_results[tag_combination]
-
-
-def compute_result_rarity(operators: frozenset[Operator]) -> int:
+def compute_result_rarity(operators: Iterable[Operator]) -> tuple[int, dict[int, int]]:
     rarity = 0
+    rarities = dict.fromkeys(range(1, 6 + 1), 0)
 
     for operator in operators:
+        rarities[operator.rarity] += 1
+
         if rarity == 0:
             rarity = operator.rarity
 
+        if operator.rarity == 3:
+            rarity = 3
+            continue
+
         if rarity != operator.rarity:
-            if operator.rarity in (1,2): # These can be excluded with time
-                pass
-            elif operator.rarity == 3:
-                return 3
-            else:
-                rarity = min(rarity, operator.rarity)
+            if operator.rarity in (1, 2):
+                continue
+
+            if rarity < 3:
+                rarity = operator.rarity
+
+            rarity = min(rarity, operator.rarity)
+
+    return rarity, rarities
 
 
-    return rarity
+def count_duplicates(results: Iterable[RecruitResult]) -> int:
+    results = list(results)
 
-
-def compute_base_tag_results():
-    results: defaultdict[tuple[str, ...], set[Operator]] = defaultdict(set)
-    for operator in data.recruitable_operators:
-        if operator.rarity == 6:
-            for combination_length in range(1, 5 + 1):
-                for combination in combinations(
-                    operator.tags.difference("Top Operator"), combination_length
-                ):
-                    results[(*combination, "Top Operator")].add(operator)
-
-        else:
-            for tag in operator.tags:
-                results[(tag,)].add(operator)
-
-    for tag, operators in results.items():
-        tag = frozenset(tag)
-        data.computed_results[tag] = RecruitResult(
-            tag, frozenset(operators), compute_result_rarity(frozenset(operators))
-        )
-
-
-def compute_duplicate_count(results: list[RecruitResult]) -> int:
     duplicate_count = 0
     results_copy = results.copy()
     for cur_result in results.copy():
@@ -78,10 +47,34 @@ def compute_duplicate_count(results: list[RecruitResult]) -> int:
     return duplicate_count
 
 
+def compute_result(tags: Iterable[str]) -> RecruitResult | None:
+    possible_operators = data.recruitable_operators.copy()
+    for tag in tags:
+        if tag not in data.recruitment_tags:
+            logging.warning(f'Unrecognised tag: "{tag}", expect incomplete results.')
+            return None
+
+        possible_operators &= data.tag_results[tag]
+
+        if len(possible_operators) == 0:
+            return None
+
+    if "top operator" not in tags:
+        possible_operators = [
+            operator for operator in possible_operators if operator.rarity != 6
+        ]
+
+    return RecruitResult(
+        frozenset(tags),
+        possible_operators,
+        *compute_result_rarity(possible_operators),
+    )
+
+
 def rank_results(
-    results: list[RecruitResult],
+    results: Iterable[RecruitResult],
 ) -> tuple[RecruitResult | None, list[RecruitResult]]:
-    if len(results) == 0:
+    if len(list(results)) == 0:
         return None, []
 
     special_results: list[RecruitResult] = []
@@ -96,10 +89,10 @@ def rank_results(
         else:
             regular_results.append(result)
 
-    special_results.sort(key=lambda x: (x.rarity, len(x.operators)), reverse=True)
-    regular_results.sort(key=lambda x: (x.rarity, len(x.operators)), reverse=True)
+    special_results.sort(key=lambda x: (x.rarity, -len(x.operators)), reverse=True)
+    regular_results.sort(key=lambda x: (x.rarity, -len(x.operators)), reverse=True)
 
-    special_count = len(special_results) - compute_duplicate_count(special_results)
+    special_count = len(special_results) - count_duplicates(special_results)
 
     if special_count != 0:
         return (
@@ -108,43 +101,21 @@ def rank_results(
 
     max_rarity = regular_results[0].rarity
 
-    matching_rarity = (3,)
+    if max_rarity == 3:
+        return compute_result(frozenset()), regular_results
+
     if max_rarity == 4:
-        matching_rarity = (4,)
-        if not config.randomly_select_4stars:
+        if config.automatically_select_4stars:
+            return (
+                max(*regular_results, key=lambda x: x.operator_rarities[5]),
+                regular_results,
+            )
+        else:
             return None, regular_results
 
-    return (
-        random.choice(
-            [result for result in regular_results if result.rarity in matching_rarity]
-        ),
-        regular_results,
-    )
 
-
-def compute_result(tags: frozenset[str]) -> RecruitResult | None:
-    possible_operators = data.recruitable_operators.copy()
-    for tag in tags:
-        if tag not in data.recruitment_tags:
-            logging.warning(f'Unrecognised tag: "{tag}", expect incomplete results.')
-            return None
-
-        possible_operators = possible_operators.intersection(
-            data.computed_results[frozenset((tag,))].operators
-        )
-
-        if len(possible_operators) == 0:
-            return None
-
-    return RecruitResult(
-        tags, possible_operators, compute_result_rarity(possible_operators)
-    )
-
-
-def compute_results(tags: frozenset[str]) -> list[RecruitResult]:
-    results: list[RecruitResult] = []
-
-    tag_combinations: list[frozenset[str]] = []
+def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
+    tag_combinations: list[frozenset[str]] = [frozenset()]
     for combination_length in range(1, 6 + 1):
         tag_combinations.extend(
             [
@@ -153,14 +124,5 @@ def compute_results(tags: frozenset[str]) -> list[RecruitResult]:
             ]
         )
 
-    for tag_combination in tag_combinations:
-        if tag_combination not in data.computed_results:
-            result = compute_result(tag_combination)
-            if result is not None:
-                data.computed_results[tag_combination] = result
-            else:
-                continue
-
-        results.append(data.computed_results[tag_combination])
-
-    return results
+    results = [compute_result(tag_combination) for tag_combination in tag_combinations]
+    return [result for result in results if result is not None]

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Operator:
+    code_name: str
     name: str
     tags: frozenset[str]
     rarity: int
@@ -12,7 +13,8 @@ class Operator:
 class RecruitResult:
     tags: frozenset[str]
     operators: frozenset[Operator]
-    rarity: int | None
+    rarity: int
+    operator_rarities: dict[int, int]
 
     def get_sorted_operators(self) -> list[Operator]:
         return sorted(self.operators, key=lambda x: (-x.rarity, x.name))
@@ -22,4 +24,4 @@ class RecruitResult:
 class Config:  # filled with default values
     data_dir_path: str = "data/"
     allow_robots: bool = True
-    randomly_select_4stars: bool = True
+    automatically_select_4stars: bool = True

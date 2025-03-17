@@ -2,11 +2,13 @@ import logging
 import os
 import pickle
 import re
+from collections import defaultdict
+from collections.abc import Mapping, MutableSequence
 
 import orjson
 import requests
 
-from Classes import Operator, RecruitResult
+from Classes import Operator
 from Config import config
 
 operator_name_fixes: dict[str, str] = {"Justice Knight": "'Justice Knight'"}
@@ -14,64 +16,54 @@ operator_name_fixes: dict[str, str] = {"Justice Knight": "'Justice Knight'"}
 cached_ETag: str
 recruitable_operators: frozenset[Operator]
 recruitment_tags: frozenset[str]
-computed_results: dict[frozenset[str], RecruitResult]
+cased_recruitment_tag_lookup: dict[str, str]
+tag_results: dict[str, frozenset[Operator]]
 
 
 def read_data():
-    global cached_ETag, recruitable_operators, recruitment_tags, computed_results
+    global cached_ETag, recruitable_operators, recruitment_tags, cased_recruitment_tag_lookup, tag_results
 
-    try:
-        with open(os.path.join(config.data_dir_path, "cached_ETag.txt")) as file:
-            cached_ETag = file.read()
-    except FileNotFoundError:
-        cached_ETag = ""
+    files = [
+        "cached_ETag.pickle",
+        "recruitable_operators.pickle",
+        "recruitment_tags.pickle",
+        "cased_recruitment_tags.pickle",
+        "tag_results.pickle",
+    ]
+    variables = ["", frozenset(), frozenset(), {}, {}]
+    for index, file in enumerate(files):
+        try:
+            variables[index] = pickle.load(
+                open(os.path.join(config.data_dir_path, file), "rb")
+            )
+        except FileNotFoundError:
+            pass
 
-    try:
-        recruitable_file_path = os.path.join(
-            config.data_dir_path, "recruitable_operators.pickle"
-        )
-        recruitable_operators = pickle.load(open(recruitable_file_path, "rb"))
-    except FileNotFoundError:
-        recruitable_operators = frozenset()
-
-    try:
-        tags_file_path = os.path.join(config.data_dir_path, "recruitment_tags.pickle")
-        recruitment_tags = pickle.load(open(tags_file_path, "rb"))
-    except FileNotFoundError:
-        recruitment_tags = frozenset()
-
-    try:
-        computed_combinations_file_path = os.path.join(
-            config.data_dir_path, "computed_tag_combinations.pickle"
-        )
-        computed_results = pickle.load(open(computed_combinations_file_path, "rb"))
-    except FileNotFoundError:
-        computed_results = {}
+    cached_ETag = variables[0]
+    recruitable_operators = variables[1]
+    recruitment_tags = variables[2]
+    cased_recruitment_tag_lookup = variables[3]
+    tag_results = variables[4]
 
 
 def write_updated_data():
-    # noinspection PyPep8Naming
-    cached_ETag_file_path = os.path.join(config.data_dir_path, "cached_ETag.txt")
-    with open(cached_ETag_file_path, "w") as file:
-        file.write(cached_ETag)
-
-    recruitable_file_path = os.path.join(
-        config.data_dir_path, "recruitable_operators.pickle"
-    )
-    # noinspection PyTypeChecker
-    pickle.dump(recruitable_operators, open(recruitable_file_path, "wb"))
-
-    tags_file_path = os.path.join(config.data_dir_path, "recruitment_tags.pickle")
-    # noinspection PyTypeChecker
-    pickle.dump(recruitment_tags, open(tags_file_path, "wb"))
-
-
-def write_computed_combinations():
-    computed_tag_combinations_file_path = os.path.join(
-        config.data_dir_path, "computed_tag_combinations.pickle"
-    )
-    # noinspection PyTypeChecker
-    pickle.dump(computed_results, open(computed_tag_combinations_file_path, "wb"))
+    files = [
+        "cached_ETag.pickle",
+        "recruitable_operators.pickle",
+        "recruitment_tags.pickle",
+        "cased_recruitment_tags.pickle",
+        "tag_results.pickle",
+    ]
+    variables = [
+        cached_ETag,
+        recruitable_operators,
+        recruitment_tags,
+        cased_recruitment_tag_lookup,
+        tag_results,
+    ]
+    for file, data in zip(files, variables):
+        # noinspection PyTypeChecker
+        pickle.dump(data, open(os.path.join(config.data_dir_path, file), "wb"))
 
 
 # Pray YoStar doesn't change formatting
@@ -94,47 +86,49 @@ def get_special_tags(rarity: int, position: str, profession: str) -> list[str]:
     extra_tags: list[str] = []
     match rarity:
         case 1:
-            extra_tags.append("Robot")
+            extra_tags.append("robot")
         case 2:
-            extra_tags.append("Starter")
+            extra_tags.append("starter")
         case 5:
-            extra_tags.append("Senior Operator")
+            extra_tags.append("senior operator")
         case 6:
-            extra_tags.append("Top Operator")
+            extra_tags.append("top operator")
         case _:
             pass
 
     match position:
         case "MELEE":
-            extra_tags.append("Melee")
+            extra_tags.append("melee")
         case "RANGED":
-            extra_tags.append("Ranged")
+            extra_tags.append("ranged")
 
     match profession:
         case "PIONEER":
-            extra_tags.append("Vanguard")
+            extra_tags.append("vanguard")
         case "WARRIOR":
-            extra_tags.append("Guard")
+            extra_tags.append("guard")
         case "TANK":
-            extra_tags.append("Defender")
+            extra_tags.append("defender")
         case "SNIPER":
-            extra_tags.append("Sniper")
+            extra_tags.append("sniper")
         case "CASTER":
-            extra_tags.append("Caster")
+            extra_tags.append("caster")
         case "MEDIC":
-            extra_tags.append("Medic")
+            extra_tags.append("medic")
         case "SUPPORT":
-            extra_tags.append("Supporter")
+            extra_tags.append("supporter")
         case "SPECIAL":
-            extra_tags.append("Specialist")
+            extra_tags.append("specialist")
 
     return extra_tags
 
 
 def parse_recruitable_operators(
-    recruitable_operator_names: list[str], operator_details: dict[str, dict]
+    recruitable_operator_names: MutableSequence[str],
+    operator_details: Mapping[str, dict],
 ) -> frozenset[Operator]:
     operators: set[Operator] = set()
+
     for code_name, details in operator_details.items():
         if len(operators) == len(recruitable_operator_names):
             break
@@ -144,9 +138,10 @@ def parse_recruitable_operators(
                 rarity = int(details["rarity"][-1:])
                 operators.add(
                     Operator(
+                        code_name,
                         details["name"],
                         frozenset(
-                            details["tagList"]
+                            [tag.lower() for tag in details["tagList"]]
                             + get_special_tags(
                                 rarity, details["position"], details["profession"]
                             )
@@ -173,7 +168,7 @@ def parse_recruitable_operators(
 
 
 # YoStar, I SWEAR to fucking GOD
-def fix_operator_names(operator_names: list[str]):
+def fix_operator_names(operator_names: MutableSequence[str]):
     for index, name in enumerate(operator_names):
         try:
             operator_names[index] = operator_name_fixes[name]
@@ -185,8 +180,8 @@ def fix_operator_names(operator_names: list[str]):
 
 def update_data(
     gacha_table_response: requests.Response,
-) -> tuple[frozenset[Operator], frozenset[str]]:
-    global cached_ETag, recruitable_operators, recruitment_tags
+):
+    global cached_ETag, recruitable_operators, recruitment_tags, cased_recruitment_tag_lookup
 
     # TODO actually cache
     # cached_ETag = gacha_table_response.headers["ETag"]
@@ -194,22 +189,51 @@ def update_data(
     recruitable_operator_names = parse_recruitable_operator_names(
         orjson.loads(gacha_table_response.text)["recruitDetail"]
     )
-    recruitable_operator_names = fix_operator_names(recruitable_operator_names)
 
     # operator_details_response = requests.get(
     #     "https://raw.githubusercontent.com/Kengxxiao/ArknightsGameData_YoStar/refs/heads/main/en_US/gamedata/excel/character_table.json",
     # )
     operator_details_response = pickle.load(open("response.resp", "rb"))
 
-    old_recruitable_operators = recruitable_operators.copy()
+    recruitable_operator_names = fix_operator_names(recruitable_operator_names)
     recruitable_operators = parse_recruitable_operators(
         recruitable_operator_names, orjson.loads(operator_details_response.text)
     )
 
-    old_recruitment_tags = recruitment_tags.copy()
-    recruitment_tags = parse_tags(orjson.loads(gacha_table_response.text)["gachaTags"])
+    special_tags = {
+        "Robot",
+        "Starter",
+        "Senior Operator",
+        "Top Operator",
+        "Melee",
+        "Ranged",
+        "Vanguard",
+        "Guard",
+        "Defender",
+        "Sniper",
+        "Caster",
+        "Medic",
+        "Supporter",
+        "Specialist",
+    }
+    cased_recruitment_tag_lookup = {
+        tag.lower(): tag
+        for tag in parse_tags(orjson.loads(gacha_table_response.text)["gachaTags"])
+        | special_tags
+    }
+    recruitment_tags = frozenset(cased_recruitment_tag_lookup.keys())
 
-    return old_recruitable_operators, old_recruitment_tags
+
+def compute_base_tag_results():
+    global tag_results
+    tag_results_temp: dict[str, set] = defaultdict(set)
+
+    for operator in recruitable_operators:
+        for tag in operator.tags:
+            tag_results_temp[tag].add(operator)
+
+    for tag, result in tag_results_temp.items():
+        tag_results[tag] = frozenset(result)
 
 
 def check_update() -> tuple[bool, requests.Response | None]:

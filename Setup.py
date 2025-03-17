@@ -1,8 +1,13 @@
 import os
 
 from Config import config, read_config
-from DataHandler import check_update, read_data, update_data, write_updated_data
-from RecruitmentHandler import compute_base_tag_results, invalidate_updated_combinations
+from DataHandler import (
+    check_update,
+    compute_base_tag_results,
+    read_data,
+    update_data,
+    write_updated_data,
+)
 
 
 def initial_setup():
@@ -17,9 +22,6 @@ def setup():
 
     update_needed, gacha_table_response = check_update()
     if update_needed:
-        old_recruitable_operators, old_recruitment_tags = update_data(
-            gacha_table_response
-        )
-        invalidate_updated_combinations(old_recruitable_operators, old_recruitment_tags)
+        update_data(gacha_table_response)
         compute_base_tag_results()
         write_updated_data()
