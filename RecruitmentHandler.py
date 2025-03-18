@@ -9,7 +9,9 @@ from Classes import Operator, RecruitResult
 from Config import config
 
 
-def compute_result_rarity(operators: Iterable[Operator]) -> tuple[int, dict[int, int]]:
+def compute_result_rarities(
+    operators: Iterable[Operator],
+) -> tuple[int, dict[int, int]]:
     rarity = 0
     rarities = dict.fromkeys(range(1, 6 + 1), 0)
 
@@ -66,8 +68,22 @@ def compute_result(tags: Iterable[str]) -> RecruitResult | None:
     return RecruitResult(
         frozenset(tags),
         possible_operators,
-        *compute_result_rarity(possible_operators),
+        *compute_result_rarities(possible_operators),
     )
+
+
+def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
+    tag_combinations: list[frozenset[str]] = [frozenset()]
+    for combination_length in range(1, 6 + 1):
+        tag_combinations.extend(
+            [
+                frozenset(combination)
+                for combination in combinations(tags, combination_length)
+            ]
+        )
+
+    results = [compute_result(tag_combination) for tag_combination in tag_combinations]
+    return [result for result in results if result is not None]
 
 
 def rank_results(
@@ -111,17 +127,3 @@ def rank_results(
             )
         else:
             return None, regular_results
-
-
-def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
-    tag_combinations: list[frozenset[str]] = [frozenset()]
-    for combination_length in range(1, 6 + 1):
-        tag_combinations.extend(
-            [
-                frozenset(combination)
-                for combination in combinations(tags, combination_length)
-            ]
-        )
-
-    results = [compute_result(tag_combination) for tag_combination in tag_combinations]
-    return [result for result in results if result is not None]
