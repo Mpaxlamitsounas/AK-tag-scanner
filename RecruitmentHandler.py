@@ -122,7 +122,7 @@ def rank_results(
     if max_rarity == 4:
         if config.automatically_select_4stars:
             return (
-                max(*regular_results, key=lambda x: x.operator_rarities[5]),
+                max(*[result for result in results if result.rarity == 4], key=lambda x: x.operator_rarities[5]),
                 regular_results,
             )
         else:
