@@ -57,6 +57,7 @@ def compute_result(tags: Iterable[str]) -> RecruitResult | None:
 
         possible_operators &= data.tag_results[tag]
 
+        # early exit
         if len(possible_operators) == 0:
             return None
 
@@ -64,6 +65,9 @@ def compute_result(tags: Iterable[str]) -> RecruitResult | None:
         possible_operators = [
             operator for operator in possible_operators if operator.rarity != 6
         ]
+
+    if len(possible_operators) == 0:
+        return None
 
     return RecruitResult(
         frozenset(tags),
