@@ -92,9 +92,9 @@ def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
 
 def rank_results(
     results: Collection[RecruitResult],
-) -> tuple[RecruitResult | None, list[RecruitResult]]:
+) -> tuple[list[RecruitResult], RecruitResult | None]:
     if len(results) == 0:
-        return None, []
+        return [], None
 
     special_results: list[RecruitResult] = []
     regular_results: list[RecruitResult] = []
@@ -115,19 +115,59 @@ def rank_results(
 
     if special_count != 0:
         return (
-            special_results[0] if special_count == 1 else None
-        ), special_results + regular_results
+            special_results + regular_results,
+            (special_results[0] if special_count == 1 else None),
+        )
 
     max_rarity = regular_results[0].rarity
 
     if max_rarity == 3:
-        return compute_result(frozenset()), regular_results
+        return regular_results, compute_result(frozenset())
 
     if max_rarity == 4:
+        rarity_results = [result for result in results if result.rarity == 4]
+        if len(rarity_results) == 1:
+            return regular_results, rarity_results[0]
+
         if config.automatically_select_4stars:
             return (
-                max(*[result for result in results if result.rarity == 4], key=lambda x: x.operator_rarities[5]),
                 regular_results,
+                max(rarity_results, key=lambda x: x.operator_rarities[5]),
             )
         else:
-            return None, regular_results
+            return regular_results, None
+
+
+def print_results(results: Collection[RecruitResult], best: RecruitResult | None):
+    if best is None:
+        print("Could not pick a best result.")
+    else:
+        print("Best result:")
+        print(f"{best.rarity}★ combination, Tags: [", end="")
+        print(
+            *[data.cased_recruitment_tag_lookup[tag] for tag in best.tags],
+            sep=", ",
+            end="], Operators:\n\t[",
+        )
+        print(
+            *[f"{op.name}: {str(op.rarity)}★" for op in best.get_sorted_operators()],
+            sep=", ",
+            end="]\n",
+        )
+
+    print()
+    print("Results:")
+    for result in results:
+        print(f"{result.rarity}★ combination, Tags: [", end="")
+        print(
+            *[data.cased_recruitment_tag_lookup[tag] for tag in result.tags],
+            sep=", ",
+            end="], Operators:\n\t[",
+        )
+        print(
+            *[f"{op.name}: {str(op.rarity)}★" for op in result.get_sorted_operators()],
+            sep=", ",
+            end="]\n",
+        )
+
+    print()
