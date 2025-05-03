@@ -1,27 +1,25 @@
 import os
 
-from Config import config, read_config
-from DataHandler import (
-    check_update,
-    compute_base_tag_results,
-    read_data,
-    update_data,
-    write_updated_data,
-)
+from Classes import Config
+from DataHandler import DataHandler
 
 
-def initial_setup():
-    if not os.path.exists(config.data_dir_path):
-        os.mkdir(config.data_dir_path)
+def initial_setup(data_dir_path: str):
+    if not os.path.exists(data_dir_path):
+        os.mkdir(data_dir_path)
 
 
 def setup():
-    initial_setup()
-    read_config()
-    read_data()
+    config = Config()
+    initial_setup(config.data_dir_path)
+    config.read_config()
+    data_handler = DataHandler()
+    data_handler.read_data(config.data_dir_path)
 
-    update_needed, gacha_table_response = check_update()
+    update_needed, gacha_table_response = data_handler.check_update()
     if update_needed:
-        update_data(gacha_table_response)
-        compute_base_tag_results()
-        write_updated_data()
+        data_handler.update_data(gacha_table_response)
+        data_handler.compute_base_tag_results()
+        data_handler.write_updated_data(config.data_dir_path)
+
+    return config, data_handler

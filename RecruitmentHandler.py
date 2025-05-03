@@ -3,10 +3,7 @@ from collections.abc import Collection, Iterable
 from copy import copy
 from itertools import combinations
 
-# noinspection PyPep8Naming
-import DataHandler as data
-from Classes import Operator, RecruitResult
-from Config import config
+from Classes import Config, Data, Operator, RecruitResult
 
 
 def compute_result_rarities(
@@ -48,7 +45,7 @@ def count_duplicates(results: Iterable[RecruitResult]) -> int:
     return duplicate_count
 
 
-def compute_result(tags: Iterable[str]) -> RecruitResult | None:
+def compute_result(data: Data, tags: Iterable[str]) -> RecruitResult | None:
     possible_operators = data.recruitable_operators.copy()
     for tag in tags:
         if tag not in data.recruitment_tags:
@@ -76,7 +73,7 @@ def compute_result(tags: Iterable[str]) -> RecruitResult | None:
     )
 
 
-def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
+def compute_results(data: Data, tags: Iterable[str]) -> list[RecruitResult]:
     tag_combinations: list[frozenset[str]] = [frozenset()]
     for combination_length in range(1, 6 + 1):
         tag_combinations.extend(
@@ -86,12 +83,14 @@ def compute_results(tags: Iterable[str]) -> list[RecruitResult]:
             ]
         )
 
-    results = [compute_result(tag_combination) for tag_combination in tag_combinations]
+    results = [
+        compute_result(data, tag_combination) for tag_combination in tag_combinations
+    ]
     return [result for result in results if result is not None]
 
 
 def rank_results(
-    results: Collection[RecruitResult],
+    data: Data, results: Collection[RecruitResult], config: Config = Config()
 ) -> tuple[list[RecruitResult], RecruitResult | None]:
     if len(results) == 0:
         return [], None
@@ -122,7 +121,7 @@ def rank_results(
     max_rarity = regular_results[0].rarity
 
     if max_rarity == 3:
-        return regular_results, compute_result(frozenset())
+        return regular_results, compute_result(data, frozenset())
 
     if max_rarity == 4:
         rarity_results = [result for result in results if result.rarity == 4]
@@ -138,7 +137,9 @@ def rank_results(
             return regular_results, None
 
 
-def print_results(results: Collection[RecruitResult], best: RecruitResult | None):
+def print_results(
+    data: Data, results: Collection[RecruitResult], best: RecruitResult | None
+):
     if best is None:
         print("Could not pick a best result.")
     else:

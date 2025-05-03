@@ -1,6 +1,7 @@
 import os
 from collections.abc import Collection
 
+from Classes import Config, Data
 from RecruitmentHandler import compute_results, print_results, rank_results
 from Setup import setup
 
@@ -9,17 +10,19 @@ def clear():
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def process_recruitment(tags: Collection[str]):
+def process_recruitment(config: Config, data: Data, tags: Collection[str]):
     tags = [tag.lower().strip() for tag in tags if tag != ""]
     clear()
 
-    results = compute_results(tags)
-    ranked_results, best_result = rank_results(results)
-    print_results(ranked_results, best_result)
+    results = compute_results(data, tags)
+    ranked_results, best_result = rank_results(data, results, config)
+    print_results(data, ranked_results, best_result)
 
 
 def main():
-    setup()
+    config, data_handler = setup()
+
+    config.allow_robots = False
 
     while True:
         tags = input(
@@ -29,7 +32,7 @@ def main():
         if any([tag.lower() == "exit" or tag.lower() == "quit" for tag in tags]):
             break
 
-        process_recruitment(tags)
+        process_recruitment(config, data_handler.data, tags)
 
     # TODO: test more
     # TODO: check for edge cases
