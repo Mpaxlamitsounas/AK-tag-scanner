@@ -22,11 +22,9 @@ def process_recruitment(config: Config, data: Data, tags: Collection[str]):
 def main():
     config, data_handler = setup()
 
-    config.allow_robots = False
-
     while True:
         tags = input(
-            'Enter tags separated with a comma, enter "exit" to quit:\n? '
+            'Enter tags separated with a comma, enter "exit" or "quit" to quit:\n? '
         ).split(",")
 
         if any([tag.lower() == "exit" or tag.lower() == "quit" for tag in tags]):
