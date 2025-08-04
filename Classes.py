@@ -37,9 +37,9 @@ class Config:  # filled with default values
                 self.automatically_select_4stars = config.automatically_select_4stars
 
         except FileNotFoundError:
-            self.write_default_config()
+            self.write_config()
 
-    def write_default_config(self):
+    def write_config(self):
         with open("./config.json", "wb") as file:
             file.write(orjson.dumps(vars(self), option=orjson.OPT_INDENT_2))
 

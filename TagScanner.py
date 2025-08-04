@@ -32,9 +32,6 @@ def main():
 
         process_recruitment(config, data_handler.data, tags)
 
-    # TODO: test more
-    # TODO: check for edge cases
-
 
 if __name__ == "__main__":
     main()
